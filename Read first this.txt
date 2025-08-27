@@ -1,0 +1,64 @@
+Step-by-Step Guide to Running the Traffic Violation & Helmet Detection System 🚦🪖🚗  
+Get ready to experience AI-driven detection for both traffic violations and helmet usage! With just a few easy steps, you’ll have this enhanced project up and running. Let’s get started!
+
+🔧 Step 1: Install Anaconda  
+Before diving into the code, ensure you have Anaconda installed on your system. Anaconda simplifies the process of managing environments and packages!
+
+🛠️ Step 2: Update the Path  
+In the project code, locate the following line:  
+python file  
+find = "C:/Your Path/Traffic Violation Detection"  
+Replace it with the path where you stored the project folder. For example  
+python file  
+find = "C:/Coding/Projects/Traffic Violation Detection"
+
+📂 Step 3: Navigate to the Project Directory  
+Open Anaconda Prompt and navigate to the folder where you have the project stored. You can do this by running:  
+bash  
+cd path_to_your_project_directory
+
+🖥️ Step 4: Create a Virtual Environment  
+Let’s set up a dedicated environment for this project! Run the following command to create a virtual environment with Python 3.8:  
+bash  
+conda create --name Vplatform python=3.8
+
+🚀 Step 5: Activate the Virtual Environment  
+Activate your virtual environment with this simple command:  
+bash  
+conda activate Vplatform
+
+📦 Step 6: Install Required Packages  
+Time to install the necessary packages that power the project:  
+bash  
+conda install pillow  
+conda install numpy  
+conda install keras  
+conda install tensorflow  
+pip install opencv-python  
+pip install imageio  
+pip install imageio[ffmpeg]  
+pip install imageio[pyav]  
+# If using YOLOv5 for helmet detection, also run:  
+pip install torch torchvision torchaudio
+
+⚡ Step 7: Run the Project  
+Now, you’re ready to run the project! Simply execute the following command:  
+bash  
+python RunProject.py
+
+🖼️ Step 8: Select the Input File  
+When the project GUI appears, select the image or video file that you want to analyze for traffic and helmet violations.
+
+✏️ Step 9: Set the Detection Boundary  
+Mark the boundary in the GUI where the detection system should monitor violations.
+
+🪖 Step 10: Helmet Detection  
+The system will now also detect whether riders are wearing helmets. If a person is detected crossing the boundary **without a helmet**, their image will be saved as a violation.
+
+⏳ Step 11: Wait for the Magic!  
+Sit back and watch as the system processes the input and provides you with real-time detection results for both traffic violations and helmet usage!
+
+💡 Pro Tip: For faster and more accurate detection, use optimized YOLO weights trained for both traffic objects and helmets. You can find or train such weights using public datasets.
+
+🚦 Ready to Detect Traffic & Helmet Violations Like a Pro? 🚦  
+Follow these steps and watch the magic happen. Your enhanced Traffic Violation & Helmet Detection System will efficiently catch rule-breakers and ensure safety
