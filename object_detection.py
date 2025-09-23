@@ -427,7 +427,7 @@ def draw_boxes(image, boxes, line, labels, obj_thresh, dcnt):
                     ymax = min(h, box.ymax)
                     if xmax > xmin and ymax > ymin:
                         cimg = image[ymin:ymax, xmin:xmax]
-                        save_dir = "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/IdentifiedPictures"
+                        save_dir = os.path.join("IdentifiedPictures")
                         os.makedirs(save_dir, exist_ok=True)
                         save_path = os.path.join(save_dir, f"helmet_violation_{dcnt}.jpg")
                         cv2.imwrite(save_path, cimg)
@@ -436,7 +436,7 @@ def draw_boxes(image, boxes, line, labels, obj_thresh, dcnt):
     # ...rest of your code for drawing and other violations...
     return image
 
-weights_path = "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3.weights"
+weights_path = os.path.join("yolov3.weights")
 # set some parameters
 net_h, net_w = 416, 416
 obj_thresh, nms_thresh = 0.5, 0.45
@@ -456,7 +456,7 @@ labels = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", 
 yolov3 = make_yolov3_model()
 
 # load the weights trained on COCO into the model
-weight_reader = WeightReader("C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3.weights")
+weight_reader = WeightReader(os.path.join("yolov3.weights"))
 weight_reader.load_weights(yolov3)
 
 # my defined functions
@@ -507,14 +507,14 @@ def intersection(p, q, r, t):
 # ------------------------------
 # Load helmet detection model
 # ------------------------------
-helmet_labels_path = "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/helmet.names"
+helmet_labels_path = os.path.join("helmet.names")
 with open(helmet_labels_path, 'r') as f:
     helmet_labels = [line.strip() for line in f.readlines()]
 
 # Create a separate YOLO network for helmet detection
 helmet_net = cv2.dnn.readNetFromDarknet(
-    "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3-helmet.cfg",
-    "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3-helmet.weights"
+    os.path.join("yolov3-helmet.cfg"),
+    os.path.join("yolov3-helmet.weights")
 )
 helmet_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
 helmet_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
