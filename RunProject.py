@@ -42,62 +42,18 @@ class Window(Frame):
     def open_file(self):
         self.filename = filedialog.askopenfilename()
 
-        # Try to open as video
         cap = cv2.VideoCapture(self.filename)
+
+        reader = imageio.get_reader(self.filename)
+        fps = reader.get_meta_data()['fps'] 
+
         ret, image = cap.read()
+        # Update the path to save the preview image within the project directory
+        cv2.imwrite('Images/preview.jpg', image)
 
-        if ret and image is not None:
-            # It's a video, save preview and show
-            cv2.imwrite('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Images/preview.jpg', image)
-            self.show_image('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Images/preview.jpg')
-        else:
-            # It's an image
-            image = cv2.imread(self.filename)
-            if image is not None:
-                cv2.imwrite('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Images/preview.jpg', image)
-                self.show_image('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Images/preview.jpg')
-                self.process_image(image)
-            else:
-                print("Could not open file.")
+        # Update the path to show the preview image
+        self.show_image('Images/preview.jpg')
 
-    def process_image(self, image):
-        # Run detection
-        image_h, image_w, _ = image.shape
-        new_image = od.preprocess_input(image, od.net_h, od.net_w)
-        yolos = od.yolov3.predict(new_image)
-        boxes = []
-        for i in range(len(yolos)):
-            boxes += od.decode_netout(yolos[i][0], od.anchors[i], od.obj_thresh, od.nms_thresh, od.net_h, od.net_w)
-        od.correct_yolo_boxes(boxes, image_h, image_w, od.net_h, od.net_w)
-        od.do_nms(boxes, od.nms_thresh)
-
-        # Find persons, motorbikes, helmets
-        persons = [box for box in boxes if od.labels[box.get_label()] == "person" and box.get_score() > od.obj_thresh]
-        bikes = [box for box in boxes if od.labels[box.get_label()] in ["motorbike", "bicycle"] and box.get_score() > od.obj_thresh]
-        helmets = [box for box in boxes if od.labels[box.get_label()] == "helmet" and box.get_score() > od.obj_thresh]
-
-        result_img = image.copy()
-        helmet_found = False
-
-        for person in persons:
-            # Check if person is on a bike (overlapping with bike box)
-            for bike in bikes:
-                if od.bbox_iou(person, bike) > 0.1:
-                    # Check if helmet overlaps with person head region
-                    for helmet in helmets:
-                        if od.bbox_iou(person, helmet) > 0.1:
-                            helmet_found = True
-                            cv2.rectangle(result_img, (person.xmin, person.ymin), (person.xmax, person.ymax), (0,255,0), 3)
-                            cv2.putText(result_img, "Helmet", (person.xmin, person.ymin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0,255,0), 2)
-                            break
-                if not helmet_found:
-                    cv2.rectangle(result_img, (person.xmin, person.ymin), (person.xmax, person.ymax), (0,0,255), 3)
-                    cv2.putText(result_img, "No Helmet", (person.xmin, person.ymin-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0,0,255), 2)
-                break
-
-        cv2.imshow("Helmet Detection Result", result_img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
 
     def show_image(self, frame):
         self.imgSize = Image.open(frame)
@@ -144,10 +100,15 @@ class Window(Frame):
             #show created virtual line
             print(self.line)
             print(self.rect)
-            img = cv2.imread('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Images/preview.jpg')
+            # Update the paths to use the project directory
+            img = cv2.imread('Images/preview.jpg')
             cv2.line(img, self.line[0], self.line[1], (0, 255, 0), 3)
-            cv2.imwrite('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Images/copy.jpg', img)
-            self.show_image('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Images/copy.jpg')
+            cv2.imwrite('Images/copy.jpg', img)
+            self.show_image('Images/copy.jpg')
+
+            # Save the detected image in the `IdentifiedPictures` directory
+            cv2.imwrite('IdentifiedPictures/copy.jpg', img)
+            self.show_image('IdentifiedPictures/copy.jpg')
 
             ## for demonstration
             # (rxmin, rymin) = self.rect[0]
@@ -228,69 +189,62 @@ class Window(Frame):
             return False
 
     def main_process(self):
-        import os
 
         video_src = self.filename
 
-        # Try to get video FPS; if not present, treat as image
-        try:
-            reader = imageio.get_reader(video_src)
-            fps = reader.get_meta_data().get('fps', None)
-        except Exception:
-            fps = None
-
-        if fps is None:
-            # It's an image
-            image = cv2.imread(video_src)
-            if image is not None:
-                self.process_image(image)
-            else:
-                print("Could not open image file.")
-            return
-
-        # It's a video
         cap = cv2.VideoCapture(video_src)
-        writer = imageio.get_writer('C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/Materials/output/output.mp4', fps=fps)
 
+        reader = imageio.get_reader(video_src)
+        fps = reader.get_meta_data()['fps']    
+        writer = imageio.get_writer('output.mp4', fps=fps)
+
+        detected_vehicles = set()  # Track unique vehicles
         j = 1
+
         while True:
             ret, image = cap.read()
-            if not ret or image is None:
+            if image is None:
                 writer.close()
                 break
 
             image_h, image_w, _ = image.shape
             new_image = od.preprocess_input(image, od.net_h, od.net_w)
 
-            # run the prediction
+            # Run the prediction
             yolos = od.yolov3.predict(new_image)
             boxes = []
 
             for i in range(len(yolos)):
-                # decode the output of the network
+                # Decode the output of the network
                 boxes += od.decode_netout(yolos[i][0], od.anchors[i], od.obj_thresh, od.nms_thresh, od.net_h, od.net_w)
 
-            # correct the sizes of the bounding boxes
+            # Correct the sizes of the bounding boxes
             od.correct_yolo_boxes(boxes, image_h, image_w, od.net_h, od.net_w)
 
-            # suppress non-maximal boxes
-            od.do_nms(boxes, od.nms_thresh)     
+            # Suppress non-maximal boxes
+            od.do_nms(boxes, od.nms_thresh)
 
-            # draw bounding boxes on the image using labels
-            image2 = od.draw_boxes(image, boxes, self.line, od.labels, od.obj_thresh, j) 
-            
+            # Draw bounding boxes on the image using labels
+            image2, new_detections = od.draw_boxes(image, boxes, self.line, od.labels, od.obj_thresh, j, detected_vehicles)
+
+            # Save images of new detections
+            for vehicle_id in new_detections:
+                if vehicle_id not in detected_vehicles:
+                    detected_vehicles.add(vehicle_id)
+                    cv2.imwrite(f'Detected Images/vehicle_{vehicle_id}.jpg', image2)
+
             writer.append_data(image2)
-
             cv2.imshow('Traffic Violation', image2)
+
             print(j)
 
             if cv2.waitKey(10) & 0xFF == ord('q'):
                 writer.close()
                 break
 
-            j = j+1
+            j += 1
 
-        cv2.destroy_all_windows()
+        cv2.destroyAllWindows()
 
 root = Tk()
 app = Window(root)

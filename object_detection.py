@@ -1,10 +1,9 @@
 import numpy as np
-from keras.layers import Conv2D, Input, BatchNormalization, LeakyReLU, ZeroPadding2D, UpSampling2D
-from tensorflow.keras.layers import add, concatenate
+from keras.layers import Conv2D, Input, BatchNormalization, LeakyReLU, ZeroPadding2D, UpSampling2D, Add, Concatenate
 from keras.models import Model
 import struct
 import cv2
-import os
+import os  # Import os module
 
 class WeightReader:
     def __init__(self, weight_file):
@@ -109,7 +108,7 @@ def _conv_block(inp, convs, skip=True):
         if conv['bnorm']: x = BatchNormalization(epsilon=0.001, name='bnorm_' + str(conv['layer_idx']))(x)
         if conv['leaky']: x = LeakyReLU(alpha=0.1, name='leaky_' + str(conv['layer_idx']))(x)
 
-    return add([skip_connection, x]) if skip else x
+    return Add()([skip_connection, x]) if skip else x
 
 def _interval_overlap(interval_a, interval_b):
     x1, x2 = interval_a
@@ -208,7 +207,7 @@ def make_yolov3_model():
     # Layer 83 => 86
     x = _conv_block(x, [{'filter': 256, 'kernel': 1, 'stride': 1, 'bnorm': True, 'leaky': True, 'layer_idx': 84}], skip=False)
     x = UpSampling2D(2)(x)
-    x = concatenate([x, skip_61])
+    x = Concatenate()([x, skip_61])
 
     # Layer 87 => 91
     x = _conv_block(x, [{'filter': 256, 'kernel': 1, 'stride': 1, 'bnorm': True, 'leaky': True, 'layer_idx': 87},
@@ -224,7 +223,7 @@ def make_yolov3_model():
     # Layer 95 => 98
     x = _conv_block(x, [{'filter': 128, 'kernel': 1, 'stride': 1, 'bnorm': True, 'leaky': True,   'layer_idx': 96}], skip=False)
     x = UpSampling2D(2)(x)
-    x = concatenate([x, skip_36])
+    x = Concatenate()([x, skip_36])
 
     # Layer 99 => 106
     yolo_106 = _conv_block(x, [{'filter': 128, 'kernel': 1, 'stride': 1, 'bnorm': True,  'leaky': True,  'layer_idx': 99},
@@ -239,25 +238,24 @@ def make_yolov3_model():
     return model
 
 def preprocess_input(image, net_h, net_w):
-    image = image[..., ::-1]  # BGR to RGB if needed
     new_h, new_w, _ = image.shape
 
-    # Calculate scale and new size
-    scale = min(net_w / new_w, net_h / new_h)
-    new_w_resized = int(new_w * scale)
-    new_h_resized = int(new_h * scale)
-    resized = cv2.resize(image, (new_w_resized, new_h_resized))
+    # determine the new size of the image
+    if (float(net_w)/new_w) < (float(net_h)/new_h):
+        new_h = (new_h * net_w)/new_w
+        new_w = net_w
+    else:
+        new_w = (new_w * net_h)/new_h
+        new_h = net_h
 
-    # Create new image and paste resized image into center
-    new_image = np.full((net_h, net_w, 3), 128, dtype='uint8')
-    y_offset = (net_h - new_h_resized) // 2
-    x_offset = (net_w - new_w_resized) // 2
+    # resize the image to the new size
+    resized = cv2.resize(image[:,:,::-1]/255., (int(new_w), int(new_h)))
 
-    # Use the actual shape of the resized image for slicing
-    new_image[y_offset:y_offset+new_h_resized, x_offset:x_offset+new_w_resized, :] = resized
-
-    new_image = new_image.astype('float32') / 255.
+    # embed the image into the standard letter box
+    new_image = np.ones((net_h, net_w, 3)) * 0.5
+    new_image[int((net_h-new_h)//2):int((net_h+new_h)//2), int((net_w-new_w)//2):int((net_w+new_w)//2), :] = resized
     new_image = np.expand_dims(new_image, 0)
+
     return new_image
 
 def decode_netout(netout, anchors, obj_thresh, nms_thresh, net_h, net_w):
@@ -338,105 +336,72 @@ def do_nms(boxes, nms_thresh):
 
                 if bbox_iou(boxes[index_i], boxes[index_j]) >= nms_thresh:
                     boxes[index_j].classes[c] = 0
-                    
-# def draw_boxes(image, boxes, line, labels, obj_thresh, dcnt):
-#     print(line)
 
-#     for box in boxes:
-#         label_str = ''
-#         label = -1
-        
-#         for i in range(len(labels)):
-#             if box.classes[i] > obj_thresh:
-#                 label_str += labels[i]
-#                 label = i
-#                 print(labels[i] + ': ' + str(box.classes[i]*100) + '%')
-#                 print('line: (' + str(line[0][0]) + ', ' + str(line[0][1]) + ') (' + str(line[1][0]) + ', ' + str(line[1][1]) + ')')
-#                 print('Box: (' + str(box.xmin) + ', ' + str(box.ymin) + ') (' + str(box.xmax) + ', ' + str(box.ymax) + ')')
-#                 print()
-                
-#         if label >= 0:
-#             tf = False
-
-#             (rxmin, rymin) = (box.xmin, box.ymin)
-#             (rxmax, rymax) = (box.xmax, box.ymax)
-
-#             tf = False
-#             tf |= intersection(line[0], line[1], (rxmin, rymin), (rxmin, rymax))
-#             tf |= intersection(line[0], line[1], (rxmax, rymin), (rxmax, rymax))
-#             tf |= intersection(line[0], line[1], (rxmin, rymax), (rxmax, rymax))
-#             tf |= intersection(line[0], line[1], (rxmin, rymin), (rxmax, rymin))
-
-#             print(tf)
-
-#             cv2.line(image, line[0], line[1], (255, 0, 0), 3)
-
-#             if tf:
-#                 cv2.rectangle(image, (box.xmin,box.ymin), (box.xmax,box.ymax), (255,0,0), 3)
-#                 cimg = image[box.ymin:box.ymax, box.xmin:box.xmax]
-#                 cv2.imshow("violation", cimg)
-#                 cv2.waitKey(5)
-#                 cv2.imwrite("C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/IdentifiedPictures/violation_"+str(dcnt)+".jpg", cimg)
-#                 dcnt = dcnt+1
-#             else:
-#                 cv2.rectangle(image, (box.xmin,box.ymin), (box.xmax,box.ymax), (0,255,0), 3)
-
-#             cv2.putText(image, 
-#                         label_str + ' ' + str(round(box.get_score(), 2)), 
-#                         (box.xmin, box.ymin - 13), 
-#                         cv2.FONT_HERSHEY_SIMPLEX, 
-#                         1e-3 * image.shape[0], 
-#                         (0,255,0), 2)
-        
-#     return image
-def draw_boxes(image, boxes, line, labels, obj_thresh, dcnt):
+def draw_boxes(image, boxes, line, labels, obj_thresh, dcnt, detected_vehicles):
     print(line)
 
-    helmet_boxes = detect_helmets_with_dnn(image)
+    new_detections = set()
 
     for box in boxes:
         label_str = ''
         label = -1
-        
-        for i in range(len(labels)):
-            if box.classes[i] > obj_thresh:
-                label_str = labels[i]
-                label = i
-                
+
+        if hasattr(box, 'classes') and box.classes is not None:
+            for i in range(len(labels)):
+                if box.classes[i] > obj_thresh:
+                    label_str += labels[i]
+                    label = i
+                    print(labels[i] + ': ' + str(box.classes[i]*100) + '%')
+                    print('line: (' + str(line[0][0]) + ', ' + str(line[0][1]) + ') (' + str(line[1][0]) + ', ' + str(line[1][1]) + ')')
+                    print('Box: (' + str(box.xmin) + ', ' + str(box.ymin) + ') (' + str(box.xmax) + ', ' + str(box.ymax) + ')')
+                    print()
+        else:
+            print("Warning: 'classes' attribute is missing or None in box:", box)
+
         if label >= 0:
-            helmet_violation = False
-            if label_str == "motorbike":
-                has_helmet = False
-                for helmet_box in helmet_boxes:
-                    # Check overlap with motorbike box
-                    inter_w = min(box.xmax, helmet_box.xmax) - max(box.xmin, helmet_box.xmin)
-                    inter_h = min(box.ymax, helmet_box.ymax) - max(box.ymin, helmet_box.ymin)
-                    if inter_w > 0 and inter_h > 0:
-                        overlap_area = inter_w * inter_h
-                        rider_area = (box.xmax - box.xmin) * (box.ymax - box.ymin)
-                        if overlap_area / rider_area > 0.1:
-                            has_helmet = True
-                            break
-                if not has_helmet:
-                    helmet_violation = True
-                    # Clamp coordinates to image boundaries
-                    h, w = image.shape[:2]
-                    xmin = max(0, box.xmin)
-                    ymin = max(0, box.ymin)
-                    xmax = min(w, box.xmax)
-                    ymax = min(h, box.ymax)
-                    if xmax > xmin and ymax > ymin:
-                        cimg = image[ymin:ymax, xmin:xmax]
-                        save_dir = "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/IdentifiedPictures"
-                        os.makedirs(save_dir, exist_ok=True)
-                        save_path = os.path.join(save_dir, f"helmet_violation_{dcnt}.jpg")
-                        cv2.imwrite(save_path, cimg)
-                        dcnt += 1
+            tf = False
 
-    # ...rest of your code for drawing and other violations...
-    return image
+            (rxmin, rymin) = (box.xmin, box.ymin)
+            (rxmax, rymax) = (box.xmax, box.ymax)
 
-weights_path = "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3.weights"
+            tf = False
+            tf |= intersection(line[0], line[1], (rxmin, rymin), (rxmin, rymax))
+            tf |= intersection(line[0], line[1], (rxmax, rymin), (rxmax, rymax))
+            tf |= intersection(line[0], line[1], (rxmin, rymin), (rxmax, rymin))
+            tf |= intersection(line[0], line[1], (rxmin, rymax), (rxmax, rymax))
+
+            print(tf)
+
+            cv2.line(image, line[0], line[1], (255, 0, 0), 3)
+
+            if tf:
+                vehicle_id = f"{box.xmin}_{box.ymin}_{box.xmax}_{box.ymax}"
+                if vehicle_id not in detected_vehicles:
+                    detected_vehicles.add(vehicle_id)
+                    new_detections.add(vehicle_id)
+                    cv2.rectangle(image, (box.xmin, box.ymin), (box.xmax, box.ymax), (255, 0, 0), 3)
+                    cimg = image[box.ymin:box.ymax, box.xmin:box.xmax]
+                    cv2.imwrite(f"Detected Images/violation_{dcnt}.jpg", cimg)
+                    dcnt += 1
+            else:
+                cv2.rectangle(image, (box.xmin, box.ymin), (box.xmax, box.ymax), (0, 255, 0), 3)
+
+            # Draw bounding box on the image
+            cv2.rectangle(image, (box.xmin, box.ymin), (box.xmax, box.ymax), (0, 0, 255), 2)
+            cv2.putText(image, label_str, (box.xmin, box.ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+            # Check if the box crosses the drawn line
+            if intersection(line[0], line[1], (box.xmin, box.ymin), (box.xmax, box.ymax)):
+                # Save the violated vehicle image
+                save_dir = "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/IdentifiedPictures"
+                os.makedirs(save_dir, exist_ok=True)
+                save_path = os.path.join(save_dir, f"violation_{dcnt}.jpg")
+                cv2.imwrite(save_path, image[box.ymin:box.ymax, box.xmin:box.xmax])
+                dcnt += 1
+
+    return image, new_detections
+
+weights_path = "G:/Traffic Violation Detection/yolov3.weights"
 # set some parameters
 net_h, net_w = 416, 416
 obj_thresh, nms_thresh = 0.5, 0.45
@@ -456,7 +421,7 @@ labels = ["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", 
 yolov3 = make_yolov3_model()
 
 # load the weights trained on COCO into the model
-weight_reader = WeightReader("C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3.weights")
+weight_reader = WeightReader("./yolov3.weights")  # Adjusted the path to point to the correct location
 weight_reader.load_weights(yolov3)
 
 # my defined functions
@@ -504,45 +469,4 @@ def intersection(p, q, r, t):
         return True
     else:
         return False
-# ------------------------------
-# Load helmet detection model
-# ------------------------------
-helmet_labels_path = "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/helmet.names"
-with open(helmet_labels_path, 'r') as f:
-    helmet_labels = [line.strip() for line in f.readlines()]
 
-# Create a separate YOLO network for helmet detection
-helmet_net = cv2.dnn.readNetFromDarknet(
-    "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3-helmet.cfg",
-    "C:/Users/padil/OneDrive/Desktop/Traffic-Violation-Detection/yolov3-helmet.weights"
-)
-helmet_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-helmet_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
-
-def detect_helmets_with_dnn(image):
-    blob = cv2.dnn.blobFromImage(image, 1/255.0, (416, 416), swapRB=True, crop=False)
-    helmet_net.setInput(blob)
-    layer_names = helmet_net.getLayerNames()
-    output_layers = [layer_names[i[0] - 1] for i in helmet_net.getUnconnectedOutLayers()]
-    detections = helmet_net.forward(output_layers)
-
-    h, w = image.shape[:2]
-    helmet_boxes = []
-    conf_threshold = 0.5
-
-    for output in detections:
-        for detection in output:
-            scores = detection[5:]
-            class_id = np.argmax(scores)
-            confidence = scores[class_id]
-            if confidence > conf_threshold and helmet_labels[class_id] == "helmet":
-                center_x = int(detection[0] * w)
-                center_y = int(detection[1] * h)
-                width = int(detection[2] * w)
-                height = int(detection[3] * h)
-                xmin = int(center_x - width / 2)
-                ymin = int(center_y - height / 2)
-                xmax = xmin + width
-                ymax = ymin + height
-                helmet_boxes.append(BoundBox(xmin, ymin, xmax, ymax))
-    return helmet_boxes
