@@ -3,10 +3,17 @@ from ultralytics import YOLO
 import os
 import torch
 
-# --- Paths ---
-MODEL_PATH = r"D:\TrafficViolationDetection\runs\detect\train\weights\best.pt"
-VIDEO_PATH = r"D:\TrafficViolationDetection\videos\1721294-hd_1920_1080_25fps.mp4"
-OUTPUT_PATH = r"D:\TrafficViolationDetection\runs\inference\helmet_local_output.mp4"
+import os
+
+# --- Base directory ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# --- Paths (relative to script) ---
+MODEL_PATH = os.path.join(BASE_DIR, "runs", "detect", "train", "weights", "best.pt")
+VIDEO_PATH = os.path.join(BASE_DIR, "videos", "sample1.mp4")
+OUTPUT_PATH = os.path.join(BASE_DIR, "runs", "inference", "helmet_local_output.mp4")
+
+# Ensure output directory exists
 os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
 
 # --- Load YOLO model ---
@@ -68,3 +75,4 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 print(f"📁 Helmet detection output saved at: {OUTPUT_PATH}")
+
