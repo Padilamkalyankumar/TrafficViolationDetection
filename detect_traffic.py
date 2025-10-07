@@ -4,12 +4,17 @@ import shutil
 from datetime import datetime
 from ultralytics import YOLO
 
-# -----------------------------
-# Configuration
-# -----------------------------
-video_path = r"D:\TrafficViolationDetection\videos\sample1.mp4.f398.mp4"
-model_path = r"D:\TrafficViolationDetection\src\yolo11n.pt"
-save_dir = r"D:\TrafficViolationDetection\detected_violations"
+import os
+
+# Base directory of the script
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Paths relative to the script location
+video_path = os.path.join(BASE_DIR, "videos", "sample1.mp4")
+model_path = os.path.join(BASE_DIR, "src", "yolo11n.pt")
+save_dir = os.path.join(BASE_DIR, "detected_violations")
+
+# Ensure save_dir exists
 os.makedirs(save_dir, exist_ok=True)
 
 # Delete old files and folders
@@ -143,3 +148,4 @@ while cap.isOpened():
 
 cap.release()
 cv2.destroyAllWindows()
+
