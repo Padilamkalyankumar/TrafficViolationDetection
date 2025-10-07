@@ -17,7 +17,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Paths (relative to script)
 # -------------------------
 TRAFFIC_MODEL_PATH = os.path.join(BASE_DIR, "src", "yolo11n.pt")
-HELMET_MODEL_PATH = os.path.join(BASE_DIR, "runs", "detect", "train", "weights", "best.pt")
+HELMET_MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
 DETECTED_DIR = os.path.join(BASE_DIR, "detected_violations")
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -206,4 +206,5 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 print(f"✅ Detection completed! Output video saved at:\n{output_path}")
+
 
