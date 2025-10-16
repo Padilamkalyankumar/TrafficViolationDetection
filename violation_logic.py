@@ -6,25 +6,17 @@ from ultralytics import YOLO
 import math
 from tkinter import Tk, filedialog
 
-import os
-
 # -------------------------
-# Base directory (script location)
+# Paths
 # -------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# -------------------------
-# Paths (relative to script)
-# -------------------------
-TRAFFIC_MODEL_PATH = os.path.join(BASE_DIR, "src", "yolo11n.pt")
-HELMET_MODEL_PATH = os.path.join(BASE_DIR, "best.pt")
-DETECTED_DIR = os.path.join(BASE_DIR, "detected_violations")
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
+TRAFFIC_MODEL_PATH = r"D:\TrafficViolationDetection\src\yolo11n.pt"
+HELMET_MODEL_PATH = r"D:\TrafficViolationDetection\runs\detect\train\weights\best.pt"
+DETECTED_DIR = r"D:\TrafficViolationDetection\detected_violations"
+OUTPUT_DIR = r"D:\TrafficViolationDetection\output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 HELMET_DIR = os.path.join(DETECTED_DIR, "helmet")
 TRAFFIC_DIR = os.path.join(DETECTED_DIR, "traffic")
-
 
 # -------------------------
 # Cleanup old detections
@@ -206,5 +198,3 @@ cap.release()
 out.release()
 cv2.destroyAllWindows()
 print(f"✅ Detection completed! Output video saved at:\n{output_path}")
-
-
